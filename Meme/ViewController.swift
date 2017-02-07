@@ -9,6 +9,8 @@
 import UIKit
 
 class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UITextFieldDelegate{
+    
+    
     var imageSet: Bool = false
     @IBOutlet weak var MemeImage: UIImageView!
     @IBOutlet weak var cameraButton: UIBarButtonItem!
@@ -26,31 +28,28 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         topTextField.text = "Top"
         bottomTextField.text = "Bottom"
         imageSet = false
+        shareButton.isEnabled = false
+    }
+    
+
+    func bringupPicker(_ sourceType: UIImagePickerControllerSourceType) {
+        let pickerController = UIImagePickerController()
+        pickerController.delegate = self
+        pickerController.sourceType = sourceType
+        present(pickerController, animated: true, completion: nil)
+
     }
     
     @IBAction func cameraButtonPressed(_ sender: Any) {
-        let pickerController = UIImagePickerController()
-        pickerController.delegate = self
-        pickerController.sourceType = .camera
-        present(pickerController, animated: true, completion: nil)
+        bringupPicker(.camera)
     }
     
     @IBAction func albumButtonPressed(_ sender: UIBarButtonItem) {
-        print ("Pick button clicked")
-        let pickerController = UIImagePickerController()
-        pickerController.delegate = self
-        pickerController.sourceType = .photoLibrary
-        present(pickerController, animated: true, completion: nil)
+        bringupPicker(.photoLibrary)
     }
     
     @IBOutlet weak var bottomToolbar: UIToolbar!
     
-    struct Meme {
-        var topText: String?
-        var bottomText: String?
-        var originalImage: UIImage?
-        var memedImage: UIImage?
-    }
     
     var finalMemeImage: Meme!
     
@@ -70,7 +69,10 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         let documentsDirectory = paths[0]
         return documentsDirectory
     }
-    
+
+    func activityViewControllerClosed() {
+        //Your UIActivityViewController has been closed, you can do something here
+    }
     
     @IBAction func saveButtonPressed(_ sender: UIBarButtonItem) {
         save()
@@ -89,6 +91,9 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         print ("saving Meme")
         //Create the meme
         finalMemeImage = Meme(topText: topTextField.text!, bottomText: bottomTextField.text!, originalImage: MemeImage.image!, memedImage: generateMemedImage())
+        let object = UIApplication.shared.delegate
+        let appDelegate = object as! AppDelegate
+        appDelegate.memes.append(finalMemeImage)
     }
     
     @IBAction func shareButtonClicked(_ sender: UIBarButtonItem) {
@@ -96,8 +101,21 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         let activityViewController = UIActivityViewController(
             activityItems: [finalMemeImage.memedImage! as UIImage],
             applicationActivities: nil)
-        
+        // access the completion handler
+        activityViewController.completionWithItemsHandler = { activity, success, items, error in
+            print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%activity: \(activity), success: \(success), items: \(items), error: \(error)")
+            let sentMemesController = self.storyboard!.instantiateViewController(withIdentifier: "SentMemesController") as! UITabBarController
+             self.present(sentMemesController, animated: true, completion: nil)
+            
+        }
         present(activityViewController, animated: true, completion: nil)
+        
+    }
+
+    func bringupSentMemesView() {
+        if let navigationController = navigationController {
+            navigationController.popToRootViewController(animated: true)
+        }
     }
     
     override func viewDidLoad() {
@@ -112,7 +130,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
             NSStrokeColorAttributeName: UIColor.white,
             NSForegroundColorAttributeName: UIColor.black,
             NSFontAttributeName: UIFont(name: "HelveticaNeue-CondensedBlack", size: 40)!,
-            NSStrokeWidthAttributeName: 3.0]
+            NSStrokeWidthAttributeName: -3.0]
         topTextField.defaultTextAttributes = memeTextAttributes
         bottomTextField.defaultTextAttributes = memeTextAttributes
     }
@@ -125,7 +143,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     func imagePickerController(_ picker: UIImagePickerController,
                                         didFinishPickingMediaWithInfo info: [String : Any]){
         if let image = info[UIImagePickerControllerOriginalImage] as? UIImage {
-            MemeImage.contentMode = UIViewContentMode.scaleAspectFill
+            MemeImage.contentMode = UIViewContentMode.scaleAspectFit
             
             MemeImage.image = image
             print ("setting image")
@@ -145,6 +163,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         subscribeToKeyboardNotifications()
         shareButton.isEnabled = imageSet
         //saveButton.isEnabled = imageSet
+        
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -174,4 +193,3 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         return keyboardSize.cgRectValue.height
     }
 }
-
